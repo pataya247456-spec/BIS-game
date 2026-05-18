@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIS_game : 행동 면역 체계 시뮬레이터</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+    /* 도감 연출을 위한 추가 스타일 */
+    .archive-container {
+        max-height: 250px;
+        overflow-y: auto;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 10px;
+        background: #f8fafc;
+        text-align: left;
+        margin-top: 10px;
+    }
+    .archive-item {
+        padding: 8px 10px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.88rem;
+        line-height: 1.4;
+    }
+    .archive-item:last-child { border-bottom: none; }
+    .tag-red { color: #ef4444; font-weight: bold; }
+    .tag-yellow { color: #d97706; font-weight: bold; }
+    .tag-green { color: #10b981; font-weight: bold; }
+</style>
+</head>
+<body>
+    <div id="game-container" class="container">
+        
+        <!-- [1단계] 인트로 화면 -->
+        <div id="intro-section" class="section">
+            <div id="card-1" class="intro-card active">
+                <span class="badge">#1. Title</span>
+                <h2>내 몸 안의 심리적 방패<br><span class="highlight">BIS_game</span></h2>
+                <p>우리는 왜 썩은 음식 냄새를 맡으면 <b>미간을 찌푸리고</b>,<br>기침하는 사람을 보면 <b>슬쩍 거리를 둘까요?</b></p>
+                <p>우리 몸에는 백혈구 같은 생리적 면역계(PIS)도 있지만, 뇌 속에는 병균이 아예 몸에 닿지도 못하게 미리 피해 버리는 <b>'행동 면역 체계(Behavioral Immune System, BIS)'</b>가 존재합니다.</p>
+                <p class="sub-text">본 시뮬레이션은 우리 조상들이 전염병으로부터 살아남기 위해 진화시킨 영리한 심리 시스템을 직접 체험해보는 프로젝트입니다.</p>
+                <button class="next-btn" onclick="nextCard(2)">다음으로 ➔</button>
+            </div>
+
+            <div id="card-2" class="intro-card">
+                <span class="badge">#2. Rule Setup</span>
+                <h2>BIS_game 규칙 설명</h2>
+                <p>당신은 사회 속에서 다양한 외형적 단서를 가진 이웃(NPC)들을 만나게 됩니다. 그 중에는 면역적으로 위험한 Red 그룹, 잠재적인 위험성을 갖고 있는 Yellow 그룹, 그리고 완전히 안전한 Green 그룹이 있습니다.</p>
+                <p>우리의 목표는 매순간 BIS를 활용한 적절한 선택을 통해 사회적 상호작용 점수를 높이는 것입니다.<p>
+                <div class="rules-box">
+                    <ul>
+                        <li>🩸 <b>초기 스탯:</b> 면역력 <b>50</b> / 사회적 상호작용 점수 <b>100</b></li>
+                        <li>🤝 <b>플레이:</b> NPC를 만났을 때 <b>[상호작용]</b>할지 <b>[거부]</b>할지 선택합니다. 상호작용하면 사회적 상호작용 점수가 깎이지 않지만, PIS가 반응하여 면역력이 소모될 수 있습니다. 거부하면 사회적 상호작용 점수가 깎이지만, 면역력을 보존할 수 있습니다.</li>
+                        <li>📈 <b>라운드:</b> 라운드가 진행될수록 감염병 유행(위험군 출몰 확률)이 증가합니다.</li>
+                        <li>💀 <b>종료 조건:</b> 선택에 따라 <b>면역력이 0이 되면</b> 게임이 즉시 종료됩니다.</li>
+                    </ul>
+                </div>
+                <button class="start-btn" onclick="startGame()">BIS_game 시작하기 🎮</button>
+            </div>
+        </div>
+
+        <!-- [2단계] 실제 플레이 화면 -->
+        <div id="game-section" class="section hidden">
+            <!-- 20라운드 이후 동적 출현할 위기 경고 배너 -->
+            <div id="crisis-banner" class="crisis-banner hidden">
+                ⚠️ [위기 상황] 감염병 대유행! Yellow 그룹의 위험 확률 급증 (실패율 75%)
+            </div>
+
+            <!-- 상단 스탯 바 -->
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-label">라 운 드</span>
+                    <span id="round-txt" class="status-value">1</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">🩸 면역력</span>
+                    <span id="hp-txt" class="status-value highlight-red">100</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">✨ 사회적 점수</span>
+                    <span id="score-txt" class="status-value">100</span>
+                </div>
+            </div>
+
+            <!-- NPC 카드 영역 -->
+            <div class="npc-card">
+                <div class="npc-avatar">👤</div>
+                <h3 id="npc-name">접근 중인 이웃...</h3>
+            </div>
+
+            <!-- 결과 피드백 메시지 로그 -->
+            <div id="log-box" class="log-box">이웃이 다가옵니다. 어떤 선택을 하시겠습니까?</div>
+
+            <!-- 플레이 선택 버튼 -->
+            <div class="action-buttons">
+                <button class="action-btn choice-interact" onclick="handleChoice(true)">🤝 사회적 상호작용</button>
+                <button class="action-btn choice-reject" onclick="handleChoice(false)">❌ 거부하기</button>
+            </div>
+        </div>
+
+        <!-- [3단계] Game Over 화면 -->
+        <div id="ending-section" class="section hidden">
+            <div class="intro-card active">
+                <span class="badge">#3. Game Over</span>
+                <h2>💀 시뮬레이션 종료</h2>
+                <p>당신의 신체 면역력이 완전히 고갈되어 사회 활동이 불가능해졌습니다.</p>
+                <div class="rules-box" style="text-align: center;">
+                    <p style="text-align: center; margin-bottom: 8px;">최종 버틴 라운드: <b id="end-round" class="highlight" style="font-size: 1.3rem;">0</b> R</p>
+                    <p style="text-align: center; margin-bottom: 0;">최종 사회적 점수: <b id="end-score" class="highlight" style="font-size: 1.3rem;">0</b> 점</p>
+                </div>
+                <button class="start-btn" onclick="showOutro()">행동 면역 데이터 분석 보기 📊</button>
+            </div>
+        </div>
+
+        <!-- [4단계] Outro 화면 -->
+        <div id="outro-section" class="section hidden">
+            <div class="intro-card active">
+                <span class="badge">#4. Outro Report</span>
+                <h2>📊 신호 탐지 행동 분석</h2>
+                <p>시뮬레이션 과정에서 기록된 당신의 인지 무의식 통계 데이터입니다.</p>
+                
+                <div class="rules-box" style="line-height: 1.7; font-size: 0.95rem;">
+                    🟢 올바른 결정 : <b id="stat-correct" style="color: #10b981;">0</b>회<br>
+                    🟡 위험성 있는 결정 (Yellow 상호작용) : <b id="stat-yellow-int" style="color: #f59e0b;">0</b>회<br>
+                    🔍 잘못된 결정 (Green 거부 - False Positive) : <b id="stat-fp" style="color: #ef4444;">0</b>회<br>
+                    🚨 잘못된 결정 (Red 상호작용 - False Negative) : <b id="stat-fn" style="color: #ef4444;">0</b>회
+                </div>
+
+<!-- index.html의 <div id="outro-section"> 내부 버튼 바로 위에 삽입 -->
+                <h4 style="margin: 15px 0 5px 0; font-size: 1.05rem; text-align: left;">🧠 행동 면역 체계(BIS) 성향 진단</h4>
+                <div id="bis-profile" class="sub-text" style="line-height: 1.5; font-size: 0.9rem; text-align: left; color: #334155; margin-bottom: 15px;"></div>
+                <h4 style="margin: 15px 0 5px 0; font-size: 1.05rem; text-align: left;">📚 행동 면역학 아카이브 (NPC 단서 분석)</h4>
+                <div id="npc-archive" class="archive-container">
+                    <!-- 스크립트에서 전체 도감 데이터 동적 렌더링 -->
+                </div>
+                <button class="start-btn" style="background-color: #475569;" onclick="location.reload()">새로운 표본으로 다시 시작 🔄</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
